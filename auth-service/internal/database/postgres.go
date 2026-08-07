@@ -14,7 +14,7 @@ const(
 	MaxConnIdleTime = time.Hour
 )
 
-func NewPostges(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
+func NewPostgres(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 						cfg.DBUser,
 						cfg.DBPassword,
