@@ -13,6 +13,7 @@ import (
 )
 
 
+var ErrInvalidCredentials = errors.New("ivalid credentials")
 
 type AuthService interface {
 	Register(ctx context.Context, req dto.RegisterRequest) (*dto.RegisterResponse, error)
@@ -67,7 +68,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error){
 	user, err := s.repo.GetByEmail(ctx, req.Email)
 	if errors.Is(err, repository.ErrUserNotFound){
-		return nil, errors.New("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 	if err != nil{
 		return nil, err
