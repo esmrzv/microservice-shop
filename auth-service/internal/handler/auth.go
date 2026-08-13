@@ -3,16 +3,18 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
+	"github.com/esmrzv/microservice-shop/auth-service/internal/auth"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/service"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/service/dto"
 )
 
-
 type AuthHandler interface {
 	Register(w http.ResponseWriter, r *http.Request)
 	Login(w http.ResponseWriter, r *http.Request)
+	Me(w http.ResponseWriter, r *http.Request)
 }
 
 type authHandler struct {
@@ -23,17 +25,17 @@ func NewAuthHandler(h service.AuthService) AuthHandler {
 	return &authHandler{service: h}
 }
 
-
 func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
-    var req dto.RegisterRequest
+	var req dto.RegisterRequest
 
-	err :=json.NewDecoder(r.Body).Decode(&req)
-	if err != nil{
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	response, err := h.service.Register(r.Context(), req)
-	if err != nil{
+	if err != nil {
+		log.Printf("register error: %v", err)
 		http.Error(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
@@ -42,15 +44,15 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (h *authHandler) Login(w http.ResponseWriter, r *http.Request){
+func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil{
+	if err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	response, err := h.service.Login(r.Context(), req)
-	if err != nil{
+	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
@@ -62,4 +64,17 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 
+}
+
+func (h *authHandler) Me(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.GetUserId(r.Context())
+	if !ok {
+		http.Error(w, "user not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"user_id": userID,
+	})
 }
