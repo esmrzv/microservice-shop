@@ -33,12 +33,19 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+
 	response, err := h.service.Register(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, service.ErrUserAlreadyExists) {
+			http.Error(w, "user already exists", http.StatusConflict)
+			return
+		}
+
 		log.Printf("register error: %v", err)
 		http.Error(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)

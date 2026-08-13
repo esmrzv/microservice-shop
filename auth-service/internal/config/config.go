@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -21,10 +20,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("error loading .env file: %v", err)
-	}
+	_ = godotenv.Load()
 
 	cfg := Config{
 		HTTPPort:   os.Getenv("HTTP_PORT"),
