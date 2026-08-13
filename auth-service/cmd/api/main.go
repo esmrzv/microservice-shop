@@ -2,13 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/esmrzv/microservice-shop/auth-service/internal/auth"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/config"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/database"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/handler"
+	apphttp "github.com/esmrzv/microservice-shop/auth-service/internal/http"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/repository"
 	"github.com/esmrzv/microservice-shop/auth-service/internal/service"
 )
@@ -18,7 +24,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
 
 	db, err := database.NewPostgres(ctx, cfg)
 	if err != nil {
@@ -30,19 +41,25 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	authService := service.NewAuthService(userRepo, tokenService)
 	authHandler := handler.NewAuthHandler(authService)
+	router := apphttp.NewRouter(authHandler, authMiddleware)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /register", authHandler.Register)
-	mux.HandleFunc("POST /login", authHandler.Login)
-	mux.Handle("/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	server := &http.Server{
 		Addr:    cfg.HTTPPort,
-		Handler: mux,
+		Handler: router,
 	}
-	err = server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Listening on port", cfg.HTTPPort)
+	go func() {
+		log.Printf("Listening on port %s", cfg.HTTPPort)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("listen: %s\n", err)
+		}
+	}()
 
+	<-ctx.Done()
+
+	log.Println("Shutting down http server...")
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctxShutDown); err != nil {
+		log.Printf("shutdown: %s\n", err)
+	}
 }
