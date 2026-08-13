@@ -21,6 +21,8 @@ go.work.sum
 
 # Файлы окружения
 .env
+.env.docker
+
 
 # Настройки VS Code и других IDE
 .vscode/
@@ -29,3 +31,4 @@ go.work.sum
 # Системные файлы
 .DS_Store
 Thumbs.db
+
