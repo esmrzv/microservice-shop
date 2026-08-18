@@ -59,6 +59,18 @@ services:
       shop-postgres:
         condition: service_healthy
 
+  product-service:
+    build:
+      context: ./product-service/
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./product-service/.env.docker
+    depends_on:
+      shop-postgres:
+        condition: service_healthy
+
 
 
 
