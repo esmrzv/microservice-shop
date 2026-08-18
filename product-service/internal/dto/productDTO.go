@@ -12,7 +12,7 @@ type CreateProductRequest struct {
 	Price       float64 `json:"price"`
 }
 
-type CreateProductResponse struct {
+type ProductResponse struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
