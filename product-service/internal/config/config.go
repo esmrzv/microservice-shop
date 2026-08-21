@@ -15,7 +15,8 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 
-	DBName string
+	DBName    string
+	JWTSecret string
 }
 
 func Load() (*Config, error) {
@@ -27,6 +28,7 @@ func Load() (*Config, error) {
 		DBUser:     os.Getenv("DB_USER"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
 		DBName:     os.Getenv("DB_NAME"),
+		JWTSecret:  os.Getenv("JWT_SECRET"),
 	}
 	return cfg, nil
 }
