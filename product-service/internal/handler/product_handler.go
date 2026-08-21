@@ -3,9 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/esmrzv/product-service/internal/dto"
+	"github.com/esmrzv/product-service/internal/middleware"
 	"github.com/esmrzv/product-service/internal/service"
 	"github.com/google/uuid"
 )
@@ -35,7 +37,12 @@ func (h *productHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "missing user id in context", http.StatusBadRequest)
+		return
+	}
+	log.Printf("authenticated user: %s", userID)
 	response, err := h.service.CreateProduct(r.Context(), req)
 	if err != nil {
 		http.Error(w, "failed to create product", http.StatusInternalServerError)
