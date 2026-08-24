@@ -39,12 +39,16 @@ func (h *productHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
 	if !ok {
-		http.Error(w, "missing user id in context", http.StatusBadRequest)
+		http.Error(w, "missing user id in context", http.StatusInternalServerError)
 		return
 	}
 	log.Printf("authenticated user: %s", userID)
 	response, err := h.service.CreateProduct(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, service.ErrCategoryNotFound) {
+			http.Error(w, "category not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "failed to create product", http.StatusInternalServerError)
 		return
 	}

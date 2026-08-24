@@ -28,11 +28,11 @@ func NewProductRepository(db *pgxpool.Pool) ProductRepository {
 
 func (r *productRepository) CreateProduct(ctx context.Context, product *models.Product) error {
 	query := `
-			INSERT INTO products (name, description, price)
-			VALUES ($1, $2, $3)
+			INSERT INTO products (category_id, name, description, price)
+			VALUES ($1, $2, $3, $4)
 			RETURNING id, created_at, updated_at`
 
-	err := r.db.QueryRow(ctx, query, product.Name, product.Description, product.Price).Scan(&product.ID,
+	err := r.db.QueryRow(ctx, query, product.CategoryID, product.Name, product.Description, product.Price).Scan(&product.ID,
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)

@@ -9,6 +9,7 @@ import (
 	"github.com/esmrzv/product-service/internal/models"
 	"github.com/esmrzv/product-service/internal/repository"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 var ErrProductNotFound = errors.New("product not found")
@@ -22,28 +23,39 @@ type ProductService interface {
 }
 
 type productService struct {
-	repo repository.ProductRepository
+	repo         repository.ProductRepository
+	categoryRepo repository.CategoryRepository
 }
 
-func NewProductService(repo repository.ProductRepository) ProductService {
+func NewProductService(repo repository.ProductRepository, cr repository.CategoryRepository) ProductService {
 	return &productService{
-		repo: repo,
+		repo:         repo,
+		categoryRepo: cr,
 	}
 }
 
 func (s *productService) CreateProduct(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	product := &models.Product{
+		CategoryID:  req.CategoryID,
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
 	}
+	_, err := s.categoryRepo.GetCategoryByID(ctx, product.CategoryID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrCategoryNotFound
+		}
+		return nil, err
+	}
 
-	err := s.repo.CreateProduct(ctx, product)
+	err = s.repo.CreateProduct(ctx, product)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create product: %w", err)
 	}
 	response := &dto.ProductResponse{
 		ID:          product.ID,
+		CategoryID:  product.CategoryID,
 		Name:        product.Name,
 		Description: product.Description,
 		Price:       product.Price,
@@ -109,7 +121,7 @@ func (s *productService) UpdateProduct(ctx context.Context, productID uuid.UUID,
 	}
 
 	if !updated {
-		return fmt.Errorf("could not update product: %w", ErrProductNotFound)
+		return ErrProductNotFound
 	}
 	return nil
 
