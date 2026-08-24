@@ -7,7 +7,7 @@ import (
 )
 
 type CreateProductRequest struct {
-	CategoryID  uuid.UUID `json:"categoryId"`
+	CategoryID  uuid.UUID `json:"category_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
