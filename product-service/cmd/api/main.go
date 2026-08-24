@@ -42,14 +42,21 @@ func main() {
 
 	tokenService := auth.NewTokenService(cfg.JWTSecret)
 	authMiddleware := middleware.NewAuthMiddleware(tokenService)
+
 	productRepo := repository.NewProductRepository(db)
-	productService := service.NewProductService(productRepo)
+	categoryRepo := repository.NewCategoryRepository(db)
+
+	productService := service.NewProductService(productRepo, categoryRepo)
 	productHandler := handler.NewProductHandler(productService)
-	productRouter := apiHTTP.NewProductRouter(productHandler, authMiddleware)
+
+	categoryService := service.NewCategoryService(categoryRepo)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+
+	router := apiHTTP.NewRouter(productHandler, categoryHandler, authMiddleware)
 
 	server := &http.Server{
 		Addr:    cfg.HTTPPort,
-		Handler: productRouter,
+		Handler: router,
 	}
 
 	go func() {
