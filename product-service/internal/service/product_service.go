@@ -70,6 +70,9 @@ func (s *productService) GetProductByID(ctx context.Context, productID uuid.UUID
 
 	product, err := s.repo.GetProductByID(ctx, productID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrProductNotFound
+		}
 		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
 
