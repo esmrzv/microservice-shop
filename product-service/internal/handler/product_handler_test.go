@@ -248,13 +248,13 @@ func TestProductHandler_GetProductByID_RepoError(t *testing.T) {
 }
 
 func TestProductHandler_GetAll(t *testing.T) {
-	produc1ID := uuid.New()
-	produc2ID := uuid.New()
+	product1ID := uuid.New()
+	product2ID := uuid.New()
 
 	categoryID := uuid.New()
 	product1 := models.Product{
 
-		ID:          produc1ID,
+		ID:          product1ID,
 		CategoryID:  categoryID,
 		Name:        "iphone15",
 		Description: "pro max",
@@ -264,7 +264,7 @@ func TestProductHandler_GetAll(t *testing.T) {
 	}
 
 	product2 := models.Product{
-		ID:          produc2ID,
+		ID:          product2ID,
 		CategoryID:  categoryID,
 		Name:        "iphone17",
 		Description: "pro",
@@ -292,7 +292,7 @@ func TestProductHandler_GetAll(t *testing.T) {
 					Description: product2.Description,
 					Price:       product2.Price,
 					CreatedAt:   product2.CreatedAt,
-					UpdatedAt:   product1.UpdatedAt,
+					UpdatedAt:   product2.UpdatedAt,
 				},
 			}, nil
 		}}
@@ -312,14 +312,238 @@ func TestProductHandler_GetAll(t *testing.T) {
 	if len(response) != 2 {
 		t.Fatalf("expected 2 products")
 	}
-	if response[0].ID != produc1ID {
+	if response[0].ID != product1ID {
 		t.Fatalf("got ID %v, want %v", response[0].ID, product1.ID)
 	}
 	if response[0].Name != product1.Name {
-		t.Fatalf("got name %s, want %s", response[0].ID, product1.ID)
+		t.Fatalf("got name %s ,want %s", response[0].Name, product1.Name)
 	}
 	if response[0].Price != product1.Price {
-		t.Fatalf("got price %d, want %d", response[0].ID, product1.ID)
+		t.Fatalf("got price %f, want %f", response[0].Price, product1.Price)
 	}
 
+}
+
+func TestProductHandler_GetAll_ServiceError(t *testing.T) {
+	repoErr := errors.New("database error")
+	productService := &mockProductService{
+		getAllProductsFunc: func(ctx context.Context) ([]dto.ProductResponse, error) {
+			return nil, repoErr
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/products", nil)
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestProductHandler_GetAll_Empty(t *testing.T) {
+	productService := &mockProductService{
+		getAllProductsFunc: func(ctx context.Context) ([]dto.ProductResponse, error) {
+			return []dto.ProductResponse{}, nil
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/products", nil)
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusOK)
+	}
+	var response []dto.ProductResponse
+	err := json.NewDecoder(recorder.Body).Decode(&response)
+	if err != nil {
+		t.Fatal("failed to decode recorder body")
+	}
+	if len(response) != 0 {
+		t.Fatalf("got %d products, want 0", len(response))
+	}
+}
+
+func TestProductHandler_UpdateProduct(t *testing.T) {
+	productID := uuid.New()
+	updateReq := dto.UpdateProductRequest{
+		Name:        "iphone15",
+		Description: "pro max",
+		Price:       202000,
+	}
+	body, err := json.Marshal(updateReq)
+	if err != nil {
+		t.Fatal("failed to marshal request body")
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/products/"+productID.String(), bytes.NewReader(body))
+	req = req.WithContext(
+		context.WithValue(
+			req.Context(),
+			middleware.UserIDKey,
+			uuid.New(),
+		),
+	)
+	recorder := httptest.NewRecorder()
+	productService := &mockProductService{
+		updateProductFunc: func(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error {
+			return nil
+		},
+	}
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusNoContent)
+	}
+
+}
+func TestProductHandler_UpdateProduct_InvalidID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPut, "/products/uuid", nil)
+	recorder := httptest.NewRecorder()
+	productService := &mockProductService{
+		updateProductFunc: func(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error {
+			t.Fatal("service do not call")
+			return nil
+		},
+	}
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestProductHandler_UpdateProduct_InvalidJson(t *testing.T) {
+	productID := uuid.New()
+	request := httptest.NewRequest(http.MethodPut, "/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+	productService := &mockProductService{
+		updateProductFunc: func(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error {
+			t.Fatal("service do not call")
+			return nil
+		},
+	}
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusBadRequest)
+	}
+
+}
+
+func TestProductHandler_UpdateProduct_ServiceError(t *testing.T) {
+	repoErr := errors.New("database error")
+	productID := uuid.New()
+	updateReq := dto.UpdateProductRequest{
+		Name:        "iphone15",
+		Description: "pro max",
+		Price:       202000,
+	}
+	body, err := json.Marshal(updateReq)
+	if err != nil {
+		t.Fatal("failed to marshal request body")
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/products/"+productID.String(), bytes.NewReader(body))
+	productService := &mockProductService{
+		updateProductFunc: func(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error {
+			return repoErr
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusInternalServerError)
+	}
+
+}
+
+func TestProductHandler_UpdateProduct_ProductNotFound(t *testing.T) {
+	productID := uuid.New()
+	updateReq := dto.UpdateProductRequest{
+		Name:        "iphone15",
+		Description: "pro max",
+		Price:       202000,
+	}
+	body, err := json.Marshal(updateReq)
+	if err != nil {
+		t.Fatal("failed to marshal request body")
+	}
+	req := httptest.NewRequest(http.MethodPut, "/products/"+productID.String(), bytes.NewReader(body))
+	productService := &mockProductService{
+		updateProductFunc: func(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error {
+			return service.ErrProductNotFound
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestProductHandler_DeleteProduct(t *testing.T) {
+	productID := uuid.New()
+	req := httptest.NewRequest(http.MethodDelete, "/products/"+productID.String(), nil)
+	productService := &mockProductService{
+		deleteProductFunc: func(ctx context.Context, productID uuid.UUID) error {
+			return nil
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusNoContent)
+	}
+}
+
+func TestProductHandler_DeleteProduct_InvalidUUID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodDelete, "/products/invalid-uuid", nil)
+	productService := &mockProductService{
+		deleteProductFunc: func(ctx context.Context, productID uuid.UUID) error {
+			t.Fatal("service do not call")
+			return nil
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestProductHandler_DeleteProduct_ProductNotFound(t *testing.T) {
+	productID := uuid.New()
+	req := httptest.NewRequest(http.MethodDelete, "/products/"+productID.String(), nil)
+	productService := &mockProductService{
+		deleteProductFunc: func(ctx context.Context, productID uuid.UUID) error {
+			return service.ErrProductNotFound
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestNewProductHandler_DeleteProduct_ServerError(t *testing.T) {
+	repoErr := errors.New("database error")
+	req := httptest.NewRequest(http.MethodDelete, "/products/"+uuid.New().String(), nil)
+	productService := &mockProductService{
+		deleteProductFunc: func(ctx context.Context, productID uuid.UUID) error {
+			return repoErr
+		},
+	}
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusInternalServerError)
+	}
 }
