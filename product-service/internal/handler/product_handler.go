@@ -68,6 +68,10 @@ func (h *productHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 
 	response, err := h.service.GetProductByID(r.Context(), id)
 	if err != nil {
+		if errors.Is(err, service.ErrProductNotFound) {
+			http.Error(w, "product not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "failed to get product", http.StatusInternalServerError)
 		return
 	}
@@ -120,7 +124,7 @@ func (h *productHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	productID := r.PathValue("id")
 	id, err := uuid.Parse(productID)
 	if err != nil {
-		http.Error(w, "invalid product ID", http.StatusBadRequest)
+		http.Error(w, "failed to parse uuid", http.StatusBadRequest)
 		return
 	}
 
