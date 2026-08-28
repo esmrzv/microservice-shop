@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/esmrzv/product-service/internal/dto"
 	"github.com/esmrzv/product-service/internal/middleware"
+	"github.com/esmrzv/product-service/internal/models"
 	"github.com/esmrzv/product-service/internal/service"
 	"github.com/google/uuid"
 )
@@ -140,4 +142,184 @@ func TestProductHandler_CreateProduct_ServiceError(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("got %d, want %d", recorder.Code, http.StatusInternalServerError)
 	}
+}
+
+func TestProductHandler_GetProductByID(t *testing.T) {
+	productID := uuid.New()
+	req := httptest.NewRequest(http.MethodGet, "/products/"+productID.String(), nil)
+	req = req.WithContext(
+		context.WithValue(
+			req.Context(),
+			middleware.UserIDKey,
+			uuid.New(),
+		),
+	)
+
+	recorder := httptest.NewRecorder()
+	productResponce := dto.ProductResponse{
+		ID:          productID,
+		CategoryID:  uuid.New(),
+		Name:        "geforce",
+		Description: "rtx 2030",
+		Price:       23232,
+		CreatedAt:   time.Time{},
+		UpdatedAt:   time.Time{},
+	}
+	productService := &mockProductService{
+		getProductByIDFunc: func(ctx context.Context, productID uuid.UUID) (*dto.ProductResponse, error) {
+			return &productResponce, nil
+		},
+	}
+
+	router := setupHandlerRoute(productService)
+
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("got %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response dto.ProductResponse
+	err := json.NewDecoder(recorder.Body).Decode(&response)
+	if err != nil {
+		t.Fatal("failed to decode body")
+	}
+	if response.ID != productResponce.ID {
+		t.Fatalf("got ID %v, want %v", response.ID, productResponce.ID)
+	}
+	if response.Name != productResponce.Name {
+		t.Fatalf("got name %q, want %q", response.Name, productResponce.Name)
+	}
+
+}
+
+func TestProductHandler_GetProductByID_InvalidID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/products/not-uuid", nil)
+	recorder := httptest.NewRecorder()
+
+	productService := &mockProductService{
+		getProductByIDFunc: func(ctx context.Context, id uuid.UUID) (*dto.ProductResponse, error) {
+			t.Fatal("GetProductByID should not be called")
+			return nil, nil
+		},
+	}
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("got %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestProductHandler_GetProductByID_NotFound(t *testing.T) {
+	productID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+
+	productService := &mockProductService{
+		getProductByIDFunc: func(ctx context.Context, id uuid.UUID) (*dto.ProductResponse, error) {
+			return nil, service.ErrProductNotFound
+		},
+	}
+
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestProductHandler_GetProductByID_RepoError(t *testing.T) {
+	repoErr := errors.New("database error")
+	productID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+
+	productService := &mockProductService{
+		getProductByIDFunc: func(ctx context.Context, id uuid.UUID) (*dto.ProductResponse, error) {
+			return nil, repoErr
+		},
+	}
+
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("got %d, want %d ", recorder.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestProductHandler_GetAll(t *testing.T) {
+	produc1ID := uuid.New()
+	produc2ID := uuid.New()
+
+	categoryID := uuid.New()
+	product1 := models.Product{
+
+		ID:          produc1ID,
+		CategoryID:  categoryID,
+		Name:        "iphone15",
+		Description: "pro max",
+		Price:       202000,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	product2 := models.Product{
+		ID:          produc2ID,
+		CategoryID:  categoryID,
+		Name:        "iphone17",
+		Description: "pro",
+		Price:       202002,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	productService := &mockProductService{
+		getAllProductsFunc: func(ctx context.Context) ([]dto.ProductResponse, error) {
+			return []dto.ProductResponse{
+				{
+					ID:          product1.ID,
+					CategoryID:  product1.CategoryID,
+					Name:        product1.Name,
+					Description: product1.Description,
+					Price:       product1.Price,
+					CreatedAt:   product1.CreatedAt,
+					UpdatedAt:   product1.UpdatedAt,
+				},
+				{
+					ID:          product2.ID,
+					CategoryID:  product2.CategoryID,
+					Name:        product2.Name,
+					Description: product2.Description,
+					Price:       product2.Price,
+					CreatedAt:   product2.CreatedAt,
+					UpdatedAt:   product1.UpdatedAt,
+				},
+			}, nil
+		}}
+
+	req := httptest.NewRequest(http.MethodGet, "/products", nil)
+	recorder := httptest.NewRecorder()
+	router := setupHandlerRoute(productService)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("got %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response []dto.ProductResponse
+	err := json.NewDecoder(recorder.Body).Decode(&response)
+	if err != nil {
+		t.Fatal("failed to decode recorder body")
+	}
+	if len(response) != 2 {
+		t.Fatalf("expected 2 products")
+	}
+	if response[0].ID != produc1ID {
+		t.Fatalf("got ID %v, want %v", response[0].ID, product1.ID)
+	}
+	if response[0].Name != product1.Name {
+		t.Fatalf("got name %s, want %s", response[0].ID, product1.ID)
+	}
+	if response[0].Price != product1.Price {
+		t.Fatalf("got price %d, want %d", response[0].ID, product1.ID)
+	}
+
 }
