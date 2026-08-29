@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/esmrzv/product-service/docs"
 	"github.com/esmrzv/product-service/internal/auth"
 	"github.com/esmrzv/product-service/internal/config"
 	"github.com/esmrzv/product-service/internal/database"
@@ -21,6 +22,14 @@ import (
 	"github.com/esmrzv/product-service/internal/service"
 )
 
+// @title Product Service API
+// @version 1.0
+// @description API для управления товарами и категориями.
+// @host localhost:8081
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	cfg, err := config.Load()
 	if err != nil {

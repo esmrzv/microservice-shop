@@ -27,6 +27,16 @@ func NewCategoryHandler(service service.CategoryService) CategoryHandler {
 	}
 }
 
+// @Summary Create category
+// @Description Create a new category
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param category body dto.CategoryRequest true "Category data"
+// @Success 201 {object} models.Category
+// @Failure 400 {string} string "Invalid category"
+// @Failure 500 {string} string "Internal server error"
+// @Router /categories [post]
 func (h *categoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	log.Println("CreateCategory handler called")
 	category := dto.CategoryRequest{}
@@ -46,6 +56,16 @@ func (h *categoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(result)
 }
 
+// @Summary Get category by ID
+// @Description Get a category by its UUID
+// @Tags categories
+// @Produce json
+// @Param id path string true "Category ID"
+// @Success 200 {object} models.Category
+// @Failure 400 {string} string "Invalid category ID"
+// @Failure 404 {string} string "Category not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /categories/{id} [get]
 func (h *categoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	categoryID := r.PathValue("id")
 	id, err := uuid.Parse(categoryID)

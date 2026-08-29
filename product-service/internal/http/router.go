@@ -5,6 +5,7 @@ import (
 
 	"github.com/esmrzv/product-service/internal/handler"
 	"github.com/esmrzv/product-service/internal/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(
@@ -46,6 +47,7 @@ func NewRouter(
 
 	mux.HandleFunc("POST /categories", categoryHandler.CreateCategory)
 	mux.HandleFunc("GET /categories/{id}", categoryHandler.GetCategoryByID)
+	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	return mux
 }
