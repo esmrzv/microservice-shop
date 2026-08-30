@@ -55,7 +55,7 @@ func (h *productHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("authenticated user: %s", userID)
-	response, err := h.service.CreateProduct(r.Context(), req)
+	response, err := h.service.CreateProduct(r.Context(), userID, req)
 	if err != nil {
 		if errors.Is(err, service.ErrCategoryNotFound) {
 			http.Error(w, "category not found", http.StatusNotFound)
@@ -149,8 +149,12 @@ func (h *productHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	err = h.service.UpdateProduct(r.Context(), id, &req)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "missing user id in context", http.StatusInternalServerError)
+		return
+	}
+	err = h.service.UpdateProduct(r.Context(), userID, id, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrProductNotFound) {
 			http.Error(w, "product not found", http.StatusNotFound)
@@ -181,14 +185,18 @@ func (h *productHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to parse uuid", http.StatusBadRequest)
 		return
 	}
-
-	err = h.service.DeleteProduct(r.Context(), id)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "missing user id in context", http.StatusInternalServerError)
+		return
+	}
+	err = h.service.DeleteProduct(r.Context(), userID, id)
 	if err != nil {
 		if errors.Is(err, service.ErrProductNotFound) {
 			http.Error(w, "product not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "invalid product ID", http.StatusInternalServerError)
+		http.Error(w, "failed to delete product", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

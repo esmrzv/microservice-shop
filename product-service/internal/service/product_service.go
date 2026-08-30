@@ -15,11 +15,11 @@ import (
 var ErrProductNotFound = errors.New("product not found")
 
 type ProductService interface {
-	CreateProduct(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error)
+	CreateProduct(ctx context.Context, userID uuid.UUID, req dto.CreateProductRequest) (*dto.ProductResponse, error)
 	GetProductByID(ctx context.Context, productID uuid.UUID) (*dto.ProductResponse, error)
 	GetAllProducts(ctx context.Context) ([]dto.ProductResponse, error)
-	UpdateProduct(ctx context.Context, productID uuid.UUID, product *dto.UpdateProductRequest) error
-	DeleteProduct(ctx context.Context, productID uuid.UUID) error
+	UpdateProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID, product *dto.UpdateProductRequest) error
+	DeleteProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error
 }
 
 type productService struct {
@@ -34,8 +34,9 @@ func NewProductService(repo repository.ProductRepository, cr repository.Category
 	}
 }
 
-func (s *productService) CreateProduct(ctx context.Context, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
+func (s *productService) CreateProduct(ctx context.Context, userID uuid.UUID, req dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	product := &models.Product{
+		UserID:      userID,
 		CategoryID:  req.CategoryID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -55,6 +56,7 @@ func (s *productService) CreateProduct(ctx context.Context, req dto.CreateProduc
 	}
 	response := &dto.ProductResponse{
 		ID:          product.ID,
+		UserID:      product.UserID,
 		CategoryID:  product.CategoryID,
 		Name:        product.Name,
 		Description: product.Description,
@@ -110,9 +112,10 @@ func (s *productService) GetAllProducts(ctx context.Context) ([]dto.ProductRespo
 
 }
 
-func (s *productService) UpdateProduct(ctx context.Context, productID uuid.UUID, req *dto.UpdateProductRequest) error {
+func (s *productService) UpdateProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID, req *dto.UpdateProductRequest) error {
 	product := &models.Product{
 		ID:          productID,
+		UserID:      userID,
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
@@ -130,8 +133,8 @@ func (s *productService) UpdateProduct(ctx context.Context, productID uuid.UUID,
 
 }
 
-func (s *productService) DeleteProduct(ctx context.Context, productID uuid.UUID) error {
-	deleted, err := s.repo.DeleteProduct(ctx, productID)
+func (s *productService) DeleteProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error {
+	deleted, err := s.repo.DeleteProduct(ctx, userID, productID)
 	if err != nil {
 		return fmt.Errorf("failed to delete product: %w", err)
 	}

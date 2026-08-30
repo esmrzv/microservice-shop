@@ -5,6 +5,7 @@ import "github.com/google/uuid"
 
 type Product struct {
 	ID          uuid.UUID
+	UserID      uuid.UUID
 	CategoryID  uuid.UUID
 	Name        string
 	Description string

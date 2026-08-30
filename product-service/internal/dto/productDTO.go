@@ -15,6 +15,7 @@ type CreateProductRequest struct {
 
 type ProductResponse struct {
 	ID          uuid.UUID `json:"id"`
+	UserID      uuid.UUID `json:"user_id"`
 	CategoryID  uuid.UUID `json:"category_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`

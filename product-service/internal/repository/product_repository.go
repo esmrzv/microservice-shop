@@ -13,7 +13,7 @@ type ProductRepository interface {
 	GetProductByID(ctx context.Context, productID uuid.UUID) (*models.Product, error)
 	GetAllProducts(ctx context.Context) ([]models.Product, error)
 	UpdateProduct(ctx context.Context, product *models.Product) (bool, error)
-	DeleteProduct(ctx context.Context, productID uuid.UUID) (bool, error)
+	DeleteProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID) (bool, error)
 }
 
 type productRepository struct {
@@ -28,16 +28,25 @@ func NewProductRepository(db *pgxpool.Pool) ProductRepository {
 
 func (r *productRepository) CreateProduct(ctx context.Context, product *models.Product) error {
 	query := `
-			INSERT INTO products (category_id, name, description, price)
-			VALUES ($1, $2, $3, $4)
-			RETURNING id, created_at, updated_at`
+		INSERT INTO products (user_id, category_id, name, description, price)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at`
 
-	err := r.db.QueryRow(ctx, query, product.CategoryID, product.Name, product.Description, product.Price).Scan(&product.ID,
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		product.UserID,
+		product.CategoryID,
+		product.Name,
+		product.Description,
+		product.Price,
+	).Scan(
+		&product.ID,
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)
-	return err
 
+	return err
 }
 
 func (r *productRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*models.Product, error) {
@@ -86,9 +95,9 @@ func (r *productRepository) GetAllProducts(ctx context.Context) ([]models.Produc
 func (r *productRepository) UpdateProduct(ctx context.Context, product *models.Product) (bool, error) {
 	query := `UPDATE products
 			SET name = $2, description = $3, price = $4, updated_at = NOW()
-			WHERE id = $1`
+			WHERE id = $1 AND user_id = $5`
 
-	result, err := r.db.Exec(ctx, query, product.ID, product.Name, product.Description, product.Price)
+	result, err := r.db.Exec(ctx, query, product.ID, product.Name, product.Description, product.Price, product.UserID)
 	if err != nil {
 		return false, err
 	}
@@ -96,9 +105,9 @@ func (r *productRepository) UpdateProduct(ctx context.Context, product *models.P
 
 }
 
-func (r *productRepository) DeleteProduct(ctx context.Context, productID uuid.UUID) (bool, error) {
-	query := `DELETE FROM products WHERE id = $1`
-	result, err := r.db.Exec(ctx, query, productID)
+func (r *productRepository) DeleteProduct(ctx context.Context, userID uuid.UUID, productID uuid.UUID) (bool, error) {
+	query := `DELETE FROM products WHERE id = $1 AND user_id = $2`
+	result, err := r.db.Exec(ctx, query, productID, userID)
 	if err != nil {
 		return false, err
 	}
