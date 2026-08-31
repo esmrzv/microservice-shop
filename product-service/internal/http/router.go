@@ -45,7 +45,10 @@ func NewRouter(
 		),
 	)
 
-	mux.HandleFunc("POST /categories", categoryHandler.CreateCategory)
+	mux.Handle("POST /categories", authMiddleware.RequireAuth(
+		http.HandlerFunc(categoryHandler.CreateCategory),
+	),
+	)
 	mux.HandleFunc("GET /categories/{id}", categoryHandler.GetCategoryByID)
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
