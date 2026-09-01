@@ -50,10 +50,10 @@ func (r *productRepository) CreateProduct(ctx context.Context, product *models.P
 }
 
 func (r *productRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*models.Product, error) {
-	query := `SELECT id, name, description, price, created_at, updated_at FROM products WHERE id = $1`
+	query := `SELECT id, user_id, category_id, name, description, price, created_at, updated_at FROM products WHERE id = $1`
 	product := &models.Product{}
 
-	err := r.db.QueryRow(ctx, query, productID).Scan(&product.ID, &product.Name, &product.Description, &product.Price,
+	err := r.db.QueryRow(ctx, query, productID).Scan(&product.ID, &product.UserID, &product.CategoryID, &product.Name, &product.Description, &product.Price,
 		&product.CreatedAt, &product.UpdatedAt)
 
 	return product, err

@@ -18,6 +18,19 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: shop-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+
+
   migrate-auth:
     image: migrate/migrate
     depends_on:
@@ -77,3 +90,4 @@ services:
 
 volumes:
   postgres-data:
+  redis-data:

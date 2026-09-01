@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/esmrzv/product-service/docs"
 	"github.com/esmrzv/product-service/internal/auth"
+	"github.com/esmrzv/product-service/internal/cache"
 	"github.com/esmrzv/product-service/internal/config"
 	"github.com/esmrzv/product-service/internal/database"
 	"github.com/esmrzv/product-service/internal/handler"
@@ -49,13 +50,20 @@ func main() {
 	}
 	defer db.Close()
 
+	clientRedis, err := cache.NewRedis(ctx, cfg)
+	if err != nil {
+		log.Fatal("error connect to redis")
+	}
+	defer clientRedis.Close()
+
 	tokenService := auth.NewTokenService(cfg.JWTSecret)
 	authMiddleware := middleware.NewAuthMiddleware(tokenService)
 
 	productRepo := repository.NewProductRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 
-	productService := service.NewProductService(productRepo, categoryRepo)
+	productCache := cache.NewProductCache(clientRedis)
+	productService := service.NewProductService(productRepo, categoryRepo, productCache)
 	productHandler := handler.NewProductHandler(productService)
 
 	categoryService := service.NewCategoryService(categoryRepo)

@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
+	"github.com/esmrzv/product-service/internal/cache"
 	"github.com/esmrzv/product-service/internal/dto"
 	"github.com/esmrzv/product-service/internal/models"
 	"github.com/esmrzv/product-service/internal/repository"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 var ErrProductNotFound = errors.New("product not found")
@@ -25,12 +28,14 @@ type ProductService interface {
 type productService struct {
 	repo         repository.ProductRepository
 	categoryRepo repository.CategoryRepository
+	productCache cache.ProductCache
 }
 
-func NewProductService(repo repository.ProductRepository, cr repository.CategoryRepository) ProductService {
+func NewProductService(repo repository.ProductRepository, cr repository.CategoryRepository, productCache cache.ProductCache) ProductService {
 	return &productService{
 		repo:         repo,
 		categoryRepo: cr,
+		productCache: productCache,
 	}
 }
 
@@ -70,6 +75,16 @@ func (s *productService) CreateProduct(ctx context.Context, userID uuid.UUID, re
 
 func (s *productService) GetProductByID(ctx context.Context, productID uuid.UUID) (*dto.ProductResponse, error) {
 
+	cacheProduct, err := s.productCache.Get(ctx, productID)
+	if err == nil {
+		log.Println("cache HIT")
+		return cacheProduct, nil
+	}
+	if !errors.Is(err, redis.Nil) {
+		log.Println("cache MISS")
+		return nil, fmt.Errorf("failed to get product from cache: %w", err)
+	}
+
 	product, err := s.repo.GetProductByID(ctx, productID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -80,12 +95,18 @@ func (s *productService) GetProductByID(ctx context.Context, productID uuid.UUID
 
 	response := &dto.ProductResponse{
 		ID:          product.ID,
+		UserID:      product.UserID,
+		CategoryID:  product.CategoryID,
 		Name:        product.Name,
 		Description: product.Description,
 		Price:       product.Price,
 		CreatedAt:   product.CreatedAt,
 		UpdatedAt:   product.UpdatedAt,
 	}
+	if err := s.productCache.Set(ctx, response); err != nil {
+		return nil, fmt.Errorf("failed to cache product: %w", err)
+	}
+
 	return response, nil
 
 }
@@ -129,6 +150,9 @@ func (s *productService) UpdateProduct(ctx context.Context, userID uuid.UUID, pr
 	if !updated {
 		return ErrProductNotFound
 	}
+	if err := s.productCache.Delete(ctx, productID); err != nil {
+		return fmt.Errorf("failed to delete cache product: %w", err)
+	}
 	return nil
 
 }
@@ -140,6 +164,9 @@ func (s *productService) DeleteProduct(ctx context.Context, userID uuid.UUID, pr
 	}
 	if !deleted {
 		return fmt.Errorf("could not delete product: %w", ErrProductNotFound)
+	}
+	if err := s.productCache.Delete(ctx, productID); err != nil {
+		return fmt.Errorf("failed to delete cache product: %w", err)
 	}
 	return nil
 }
