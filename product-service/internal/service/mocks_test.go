@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 
+	"github.com/esmrzv/product-service/internal/dto"
 	"github.com/esmrzv/product-service/internal/models"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type mockProductRepository struct {
@@ -46,4 +48,27 @@ func (m *mockCategoryRepository) GetCategoryByID(ctx context.Context, id uuid.UU
 
 func (m *mockCategoryRepository) CreateCategory(ctx context.Context, category string) (*models.Category, error) {
 	return m.createCategoryFunc(ctx, category)
+}
+
+type mockProductCache struct{}
+
+func (m *mockProductCache) Get(
+	ctx context.Context,
+	id uuid.UUID,
+) (*dto.ProductResponse, error) {
+	return nil, redis.Nil
+}
+
+func (m *mockProductCache) Set(
+	ctx context.Context,
+	product *dto.ProductResponse,
+) error {
+	return nil
+}
+
+func (m *mockProductCache) Delete(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	return nil
 }

@@ -34,7 +34,8 @@ func TestProductService_CreateProduct(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewProductService(productRepo, categoryRepo)
+	productCache := &mockProductCache{}
+	service := NewProductService(productRepo, categoryRepo, productCache)
 
 	req := dto.CreateProductRequest{
 		CategoryID:  categoryID,
@@ -72,6 +73,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 
 func TestProductService_CreateProduct_CategoryNotFound(t *testing.T) {
 	categoryID := uuid.New()
+	productCache := &mockProductCache{}
 	categoryRepo := &mockCategoryRepository{
 		getCategoryByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Category, error) {
 			return nil, pgx.ErrNoRows
@@ -85,7 +87,7 @@ func TestProductService_CreateProduct_CategoryNotFound(t *testing.T) {
 			return nil
 		},
 	}
-	service := NewProductService(productRepo, categoryRepo)
+	service := NewProductService(productRepo, categoryRepo, productCache)
 	req := dto.CreateProductRequest{
 		CategoryID:  categoryID,
 		Name:        "RTX 2060",
@@ -121,13 +123,13 @@ func TestProductService_CreateProduct_RepositoryError(t *testing.T) {
 			}, nil
 		},
 	}
-
+	productCache := &mockProductCache{}
 	productRepo := &mockProductRepository{
 		createProductFunc: func(ctx context.Context, product *models.Product) error {
 			return repoErr
 		},
 	}
-	service := NewProductService(productRepo, categoryRepo)
+	service := NewProductService(productRepo, categoryRepo, productCache)
 	req := dto.CreateProductRequest{
 		CategoryID:  categoryID,
 		Name:        "RTX 2060",
@@ -155,13 +157,14 @@ func TestProductService_GetProductByID(t *testing.T) {
 		Description: "graphics card",
 		Price:       250,
 	}
+
 	productRepo := &mockProductRepository{
 		getProductByIDFunc: func(ctx context.Context, id uuid.UUID) (*models.Product, error) {
 			return product, nil
 
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetProductByID(context.Background(), productID)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -187,7 +190,7 @@ func TestProductService_GetProductByID_NotFound(t *testing.T) {
 			return nil, pgx.ErrNoRows
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetProductByID(context.Background(), productID)
 	if !errors.Is(err, ErrProductNotFound) {
 		t.Fatalf("expected ErrProductNotFound, got %v", err)
@@ -206,7 +209,7 @@ func TestProductService_GetProductByID_RepositoryError(t *testing.T) {
 			return nil, repoErr
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetProductByID(context.Background(), productID)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -242,7 +245,7 @@ func TestProductService_GetAllProducts(t *testing.T) {
 			return products, nil
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetAllProducts(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -282,7 +285,7 @@ func TestProductService_GetAllProducts_RepositoryError(t *testing.T) {
 		},
 	}
 
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetAllProducts(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -305,7 +308,7 @@ func TestProductService_GetAllProducts_Empty(t *testing.T) {
 			return []models.Product{}, nil
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	response, err := service.GetAllProducts(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -329,7 +332,7 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			return true, nil
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.UpdateProduct(context.Background(), productID, product)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -351,7 +354,7 @@ func TestProductService_UpdateProduct_NotFound(t *testing.T) {
 		Price:       250,
 	}
 
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.UpdateProduct(context.Background(), uuid.New(), req)
 	if err == nil {
 		t.Fatal("expected error")
@@ -374,7 +377,7 @@ func TestProductService_UpdateProduct_RepositoryError(t *testing.T) {
 			return false, repoErr
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.UpdateProduct(context.Background(), productID, req)
 	if err == nil {
 		t.Fatal("expected error")
@@ -392,7 +395,7 @@ func TestProductService_DeleteProduct(t *testing.T) {
 
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.DeleteProduct(context.Background(), productID)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -407,7 +410,7 @@ func TestProductService_DeleteProduct_RepositoryError(t *testing.T) {
 			return false, repoErr
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.DeleteProduct(context.Background(), productID)
 	if err == nil {
 		t.Fatal("expected error")
@@ -424,7 +427,7 @@ func TestProductService_DeleteProduct_NotFound(t *testing.T) {
 			return false, nil
 		},
 	}
-	service := NewProductService(productRepo, nil)
+	service := NewProductService(productRepo, nil, nil)
 	err := service.DeleteProduct(context.Background(), productID)
 	if err == nil {
 		t.Fatal("expected error")
