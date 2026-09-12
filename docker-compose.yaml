@@ -60,6 +60,19 @@ services:
         "up"
       ]
 
+  migrate-cart:
+    image: migrate/migrate
+    depends_on:
+      shop-postgres:
+        condition: service_healthy
+    volumes:
+      - ./cart-service/migrations:/migrations
+    command:
+      [
+        "-path=/migrations",
+        "-database=postgres://postgres:postgres@shop-postgres:5432/cart_db?sslmode=disable",
+        "up"
+      ]
 
   auth-service:
     build:
