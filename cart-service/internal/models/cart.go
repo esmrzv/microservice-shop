@@ -11,6 +11,7 @@ type Cart struct {
 	UserID    uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Items     []*CartItem
 }
 
 type CartItem struct {

@@ -15,6 +15,7 @@ type CartRepository interface {
 	AddItem(ctx context.Context, cartID uuid.UUID, productID uuid.UUID, quantity int) (*models.CartItem, error)
 	UpdateItemQuantity(ctx context.Context, itemID uuid.UUID, quantity int) (*models.CartItem, error)
 	DeleteItem(ctx context.Context, itemID uuid.UUID) (bool, error)
+	DeleteCart(ctx context.Context, cartID uuid.UUID) error
 }
 type cartRepository struct {
 	db *pgxpool.Pool
@@ -109,4 +110,13 @@ func (r *cartRepository) DeleteItem(ctx context.Context, itemID uuid.UUID) (bool
 		return false, err
 	}
 	return res.RowsAffected() > 0, nil
+}
+
+func (r *cartRepository) DeleteCart(ctx context.Context, cartID uuid.UUID) error {
+	query := `DELETE FROM carts WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, cartID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
