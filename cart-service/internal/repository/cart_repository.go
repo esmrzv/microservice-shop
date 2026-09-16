@@ -13,8 +13,8 @@ type CartRepository interface {
 	CreateCart(ctx context.Context, userID uuid.UUID) (*models.Cart, error)
 	GetItemsByCartID(ctx context.Context, cartID uuid.UUID) ([]*models.CartItem, error)
 	AddItem(ctx context.Context, cartID uuid.UUID, productID uuid.UUID, quantity int) (*models.CartItem, error)
-	UpdateItemQuantity(ctx context.Context, itemID uuid.UUID, quantity int) (*models.CartItem, error)
-	DeleteItem(ctx context.Context, itemID uuid.UUID) (bool, error)
+	UpdateItemQuantity(ctx context.Context, userID uuid.UUID, itemID uuid.UUID, quantity int) (*models.CartItem, error)
+	DeleteItem(ctx context.Context, userID uuid.UUID, itemID uuid.UUID) (bool, error)
 	DeleteCart(ctx context.Context, cartID uuid.UUID) error
 }
 type cartRepository struct {
@@ -90,22 +90,33 @@ func (r *cartRepository) AddItem(
 
 }
 
-func (r *cartRepository) UpdateItemQuantity(ctx context.Context, itemID uuid.UUID, quantity int) (*models.CartItem, error) {
-	query := `UPDATE cart_items
+func (r *cartRepository) UpdateItemQuantity(ctx context.Context, userID uuid.UUID, itemID uuid.UUID, quantity int) (*models.CartItem, error) {
+	query := `UPDATE cart_items ci
 			SET quantity = $1
-			WHERE id = $2
-			RETURNING id, cart_id, product_id, quantity
+			FROM carts c
+			WHERE ci.id = $2
+			AND ci.cart_id = c.id 
+			AND c.user_id = $3
+			RETURNING ci.id, ci.cart_id, ci.product_id, ci.quantity
 			`
 	var item models.CartItem
-	if err := r.db.QueryRow(ctx, query, quantity, itemID).Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity); err != nil {
+	if err := r.db.QueryRow(ctx, query, quantity, itemID, userID).Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity); err != nil {
 		return nil, err
 	}
 	return &item, nil
 }
 
-func (r *cartRepository) DeleteItem(ctx context.Context, itemID uuid.UUID) (bool, error) {
-	query := `DELETE FROM cart_items WHERE id = $1`
-	res, err := r.db.Exec(ctx, query, itemID)
+func (r *cartRepository) DeleteItem(ctx context.Context, userID uuid.UUID, itemID uuid.UUID) (bool, error) {
+	query := `
+    DELETE FROM cart_items
+    WHERE id = $1
+      AND cart_id IN (
+          SELECT id
+          FROM carts
+          WHERE user_id = $2
+      )
+`
+	res, err := r.db.Exec(ctx, query, itemID, userID)
 	if err != nil {
 		return false, err
 	}
