@@ -1,0 +1,16 @@
+syntax = "proto3";
+package product;
+option go_package = "github.com/esmrzv/product-service/proto";
+message GetProductRequest { 
+    string product_id = 1
+}
+
+service ProductService {
+    rpc GetProduct(GetProductRequest) returns (GetProductResponse)
+    }
+
+message GetProductResponse{
+    string id = 1;
+    string name = 2;
+    int64 price = 3;
+}
