@@ -21,6 +21,8 @@ type Config struct {
 	RedisHost    string
 	RedisPort    string
 	RedisEnabled bool
+
+	GRPCPort string
 }
 
 func Load() (*Config, error) {
@@ -36,6 +38,7 @@ func Load() (*Config, error) {
 		RedisHost:    os.Getenv("REDIS_HOST"),
 		RedisPort:    os.Getenv("REDIS_PORT"),
 		RedisEnabled: os.Getenv("REDIS_ENABLED") == "true",
+		GRPCPort:     os.Getenv("GRPC_PORT"),
 	}
 	return cfg, nil
 }
