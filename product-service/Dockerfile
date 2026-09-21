@@ -1,8 +1,21 @@
-FROM golang:1.26-alpine
+FROM golang:1.26
+
 WORKDIR /app
-COPY go.mod go.sum ./
+
+COPY product-service/go.mod product-service/go.sum ./product-service/
+COPY proto/go.mod ./proto/
+
+WORKDIR /app/product-service
+
 RUN go mod download
-COPY . .
+
+WORKDIR /app
+
+COPY product-service/ ./product-service/
+COPY proto/ ./proto/
+
+WORKDIR /app/product-service
+
 RUN go build -o product-service ./cmd/api
-EXPOSE "8081"
+
 CMD ["./product-service"]
