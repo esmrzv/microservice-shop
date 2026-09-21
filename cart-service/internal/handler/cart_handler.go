@@ -79,6 +79,10 @@ func (h *cartHandler) AddItem(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+		if errors.Is(err, service.ErrProductNotFound) {
+			http.Error(w, "product not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

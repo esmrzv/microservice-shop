@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/esmrzv/microservice-shop/proto/product"
 	_ "github.com/esmrzv/product-service/docs"
 	"github.com/esmrzv/product-service/internal/auth"
 	"github.com/esmrzv/product-service/internal/cache"
@@ -23,7 +24,6 @@ import (
 	"github.com/esmrzv/product-service/internal/middleware"
 	"github.com/esmrzv/product-service/internal/repository"
 	"github.com/esmrzv/product-service/internal/service"
-	"github.com/esmrzv/product-service/proto"
 	"google.golang.org/grpc"
 )
 
@@ -75,7 +75,7 @@ func main() {
 
 	productServer := grpcHandler.NewProductServer(productService)
 	grpcServer := grpc.NewServer()
-	proto.RegisterProductServiceServer(grpcServer, productServer)
+	product.RegisterProductServiceServer(grpcServer, productServer)
 	grpcListener, err := net.Listen("tcp", cfg.GRPCPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

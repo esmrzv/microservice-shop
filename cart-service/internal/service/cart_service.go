@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 
+	"github.com/esmrzv/cart-service/internal/grpc"
 	"github.com/esmrzv/cart-service/internal/models"
 	"github.com/esmrzv/cart-service/internal/repository"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type CartService interface {
@@ -21,13 +24,15 @@ type CartService interface {
 var ErrCartItemNotFound = errors.New("cart item not found")
 var ErrCartNotFound = errors.New("cart not found")
 var ErrInvalidQuantity = errors.New("quantity must be greater than zero")
+var ErrProductNotFound = errors.New("product not found")
 
 type cartService struct {
-	repo repository.CartRepository
+	repo   repository.CartRepository
+	client grpc.ProductClient
 }
 
-func NewCartService(repo repository.CartRepository) CartService {
-	return &cartService{repo: repo}
+func NewCartService(repo repository.CartRepository, productClient grpc.ProductClient) CartService {
+	return &cartService{repo: repo, client: productClient}
 }
 
 func (s *cartService) GetCart(
@@ -59,6 +64,13 @@ func (s *cartService) GetCart(
 func (s *cartService) AddItem(ctx context.Context, userID uuid.UUID, productID uuid.UUID, quantity int) (*models.CartItem, error) {
 	if quantity <= 0 {
 		return nil, ErrInvalidQuantity
+	}
+	_, err := s.client.GetProduct(ctx, productID)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, ErrProductNotFound
+		}
+		return nil, err
 	}
 
 	cart, err := s.GetCart(ctx, userID)

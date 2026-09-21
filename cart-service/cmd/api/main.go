@@ -12,11 +12,15 @@ import (
 	"github.com/esmrzv/cart-service/internal/auth"
 	"github.com/esmrzv/cart-service/internal/config"
 	"github.com/esmrzv/cart-service/internal/database"
+	grpcHabdler "github.com/esmrzv/cart-service/internal/grpc"
 	"github.com/esmrzv/cart-service/internal/handler"
 	apihttp "github.com/esmrzv/cart-service/internal/http"
 	"github.com/esmrzv/cart-service/internal/middleware"
 	"github.com/esmrzv/cart-service/internal/repository"
 	"github.com/esmrzv/cart-service/internal/service"
+	"github.com/esmrzv/microservice-shop/proto/product"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -35,11 +39,21 @@ func main() {
 	}
 	log.Println("database connected")
 
+	grpcConn, err := grpc.NewClient(cfg.ProductGRPCAddr, grpc.WithTransportCredentials(
+		insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer grpcConn.Close()
+
+	productGRPCClient := product.NewProductServiceClient(grpcConn)
+	productClient := grpcHabdler.NewProductClient(productGRPCClient)
+
 	tokenService := auth.NewTokenService(cfg.JWTSecret)
 	authMiddleware := middleware.NewAuthMiddleware(tokenService)
 
 	cartRepo := repository.NewCartRepository(db)
-	cartService := service.NewCartService(cartRepo)
+	cartService := service.NewCartService(cartRepo, productClient)
 	cartHandler := handler.NewCartHandler(cartService)
 
 	mux := http.NewServeMux()
