@@ -25,6 +25,9 @@ import (
 	"github.com/esmrzv/product-service/internal/repository"
 	"github.com/esmrzv/product-service/internal/service"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 // @title Product Service API
@@ -74,8 +77,17 @@ func main() {
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 
 	productServer := grpcHandler.NewProductServer(productService)
+
 	grpcServer := grpc.NewServer()
+
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus(
+		"", healthpb.HealthCheckResponse_SERVING)
+
 	product.RegisterProductServiceServer(grpcServer, productServer)
+	reflection.Register(grpcServer)
+
 	grpcListener, err := net.Listen("tcp", cfg.GRPCPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

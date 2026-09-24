@@ -98,6 +98,13 @@ services:
       shop-postgres:
         condition: service_healthy
 
+    healthcheck:
+      test: [ "CMD", "grpc-health-probe", "-addr=:9090" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   cart-service:
     build:
       context: .
@@ -110,7 +117,7 @@ services:
       shop-postgres:
         condition: service_healthy
       product-service:
-        condition: service_started
+        condition: service_healthy
 
 
 

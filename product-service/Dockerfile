@@ -8,6 +8,7 @@ COPY proto/go.mod ./proto/
 WORKDIR /app/product-service
 
 RUN go mod download
+RUN go install github.com/grpc-ecosystem/grpc-health-probe@latest
 
 WORKDIR /app
 
