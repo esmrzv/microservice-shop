@@ -74,6 +74,20 @@ services:
         "up"
       ]
 
+  migrate-order:
+    image: migrate/migrate
+    depends_on:
+      shop-postgres:
+        condition: service_healthy
+    volumes:
+      - ./order-service/migrations:/migrations
+    command:
+      [
+        "-path=/migrations",
+        "-database=postgres://postgres:postgres@shop-postgres:5432/order_db?sslmode=disable",
+        "up"
+      ]
+
   auth-service:
     build:
       context:  ./auth-service/
@@ -92,6 +106,7 @@ services:
       dockerfile: ./product-service/Dockerfile
     ports:
       - "8081:8081"
+      - "9090:9090"
     env_file:
       - ./product-service/.env.docker
     depends_on:
