@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	http2 "github.com/esmrzv/microservice-shop/order-service/internal/http"
@@ -13,6 +14,8 @@ import (
 
 type OrderHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
+	GetByID(w http.ResponseWriter, r *http.Request)
+	GetByUserID(w http.ResponseWriter, r *http.Request)
 }
 
 type orderHandler struct {
@@ -51,4 +54,46 @@ func (h *orderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(order)
+}
+
+func (h *orderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	log.Println("GET /orders/{id} handler called")
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	orderID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		log.Printf("err handler %v", err)
+		http2.GetErrors(w, err)
+		return
+	}
+
+	order, err := h.service.GetByID(r.Context(), userID, orderID)
+	if err != nil {
+		log.Printf("order handler error: %v", err)
+		http2.GetErrors(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(order)
+}
+
+func (h *orderHandler) GetByUserID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	orders, err := h.service.GetByUserID(r.Context(), userID)
+	if err != nil {
+		http2.GetErrors(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(orders)
 }

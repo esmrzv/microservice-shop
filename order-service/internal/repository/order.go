@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/esmrzv/microservice-shop/order-service/internal/models"
@@ -14,7 +15,7 @@ import (
 type OrderRepository interface {
 	Create(ctx context.Context, order *models.Order) error
 	GetByID(ctx context.Context, orderID uuid.UUID) (*models.Order, error)
-	GetByUserID(ctx context.Context, userID string) ([]*models.Order, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Order, error)
 }
 
 type orderRepository struct {
@@ -64,16 +65,18 @@ func (r *orderRepository) Create(ctx context.Context, order *models.Order) error
 
 func (r *orderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*models.Order, error) {
 	order := &models.Order{}
+	log.Printf("Мы на репо")
 
 	rows, err := r.pool.Query(ctx,
 		`
 	SELECT o.id, o.user_id, o.status, o.total_price, o.created_at, o.updated_at,
-	       io.id, io.product_id, io.quantity, io.price
+	       oi.id, oi.product_id, oi.quantity, oi.price
 	FROM orders o
 	LEFT JOIN order_items oi ON oi.order_id = o.id
 	WHERE o.id = $1
 	`, orderID)
 	if err != nil {
+		log.Println("Мы на репо2")
 		return nil, fmt.Errorf("query rows: %w", err)
 	}
 	defer rows.Close()
@@ -96,6 +99,7 @@ func (r *orderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*mode
 		order.Items = append(order.Items, &item)
 	}
 	if err := rows.Err(); err != nil {
+		log.Println("МЫ все еще на репо")
 		return nil, fmt.Errorf("iterate order rows: %w", err)
 	}
 	if order.ID == uuid.Nil {
@@ -105,11 +109,11 @@ func (r *orderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*mode
 	return order, nil
 }
 
-func (r *orderRepository) GetByUserID(ctx context.Context, userID string) ([]*models.Order, error) {
+func (r *orderRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Order, error) {
 
 	rows, err := r.pool.Query(ctx, `
 	SELECT o.id, o.user_id, o.status, o.total_price, o.created_at, o.updated_at,
-	       io.id, io.product_id, io.quantity, io.price
+	       oi.id, oi.product_id, oi.quantity, oi.price
 	FROM orders o
 	LEFT JOIN order_items oi ON oi.order_id = o.id
 	WHERE o.user_id = $1
