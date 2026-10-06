@@ -102,7 +102,7 @@ func (s *orderService) GetByID(ctx context.Context, userID uuid.UUID, orderID uu
 		return nil, fmt.Errorf("repository GetByID error in service: %w", err)
 	}
 	if order.UserID != userID {
-		return nil, ErrProductNotFound
+		return nil, ErrOrderNotFound
 	}
 	return order, nil
 }
