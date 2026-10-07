@@ -168,6 +168,7 @@ func TestOrderService_Create(t *testing.T) {
 func TestOrderService_GetByID(t *testing.T) {
 	userID := uuid.New()
 	orderID := uuid.New()
+	repoErr := errors.New("database error")
 	wantOrder := &models.Order{
 		ID:     orderID,
 		UserID: userID,
@@ -200,6 +201,11 @@ func TestOrderService_GetByID(t *testing.T) {
 			repoErr: pgx.ErrNoRows,
 			wantErr: ErrOrderNotFound,
 		},
+		{
+			name:    "repo error",
+			repoErr : repoErr,
+			wantErr: repoErr,
+		},
 	}
 
 	for _, tt := range tests {
@@ -230,5 +236,80 @@ func TestOrderService_GetByID(t *testing.T) {
 				t.Fatalf("expected %v, got %v", userID, order.UserID)
 			}
 		})
+	}
+}
+
+
+func TestOrderService_GetByUserID(t *testing.T) {
+	userID := uuid.New()
+	var gotUserID uuid.UUID 
+	wantOrders := []*models.Order{
+		{
+		ID:     uuid.New(),
+		UserID: userID,
+		Status: "pending",
+	},
+	{
+		ID:     uuid.New(),
+		UserID: userID,
+		Status: "completed",
+	},
+	}
+	tests := []struct {
+		name      string
+		repoOrders []*models.Order
+		repoErr   error
+		wantErr   error
+	}{
+		{
+			name:      "success",
+			repoOrders: wantOrders,
+			wantErr:   nil,
+			repoErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orderRepository := &fakeOrderRepository{
+				getByUserIDFunc: func(ctx context.Context, id uuid.UUID) ([]*models.Order, error) {
+					gotUserID = id
+					return tt.repoOrders, tt.repoErr
+				},
+			}
+			orderService := NewOrderService(orderRepository, nil)
+			orders, err := orderService.GetByUserID(context.Background(), userID)
+		if !errors.Is(err, tt.wantErr) {
+			t.Fatalf("expected: %v, got: %v", tt.wantErr, err)
+		}
+		if tt.wantErr != nil {
+			if orders != nil {
+				t.Fatalf("expected nil orders, got: %v", orders)
+			}
+			return
+		}
+		if len(orders) != len(tt.repoOrders) {
+			t.Fatalf("expected %d orders, got %d", len(tt.repoOrders), len(orders))
+		}
+		for i, order := range orders {
+			if order.ID != tt.repoOrders[i].ID {
+				t.Fatalf("expected %v, got %v", tt.repoOrders[i].ID, order.ID)
+			}
+		}
+		if orders[0].UserID != userID {
+			t.Fatalf("expected %v, got %v", userID, orders[0].UserID)
+		}
+		if orders[0].Status != "pending" {
+			t.Fatalf("expected %v, got %v", "pending", orders[0].Status)
+		}
+		if orders[1].UserID != userID {
+			t.Fatalf("expected %v, got %v", userID, orders[1].UserID)
+		}
+		if orders[1].Status != "completed" {
+			t.Fatalf("expected %v, got %v", "completed", orders[1].Status)
+		}
+		if gotUserID != userID {
+			t.Fatalf("expected %v, got %v", gotUserID, userID)
+		}
+			})
 	}
 }
