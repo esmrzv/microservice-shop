@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
 	http2 "github.com/esmrzv/microservice-shop/order-service/internal/http"
 	"github.com/esmrzv/microservice-shop/order-service/internal/middleware"
 	"github.com/esmrzv/microservice-shop/order-service/internal/models"
@@ -36,8 +35,8 @@ func (h *orderHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req http2.CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http2.GetErrors(w, err)
-		return
+    	http.Error(w, "invalid to decode json body", http.StatusBadRequest)
+    	return
 	}
 	items := make([]*models.OrderItem, 0, len(req.Items))
 	for _, item := range req.Items {
@@ -48,8 +47,8 @@ func (h *orderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := h.service.Create(r.Context(), userID, items)
 	if err != nil {
-		http2.GetErrors(w, err)
-		return
+    	http2.GetErrors(w, err)
+    	return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -66,9 +65,8 @@ func (h *orderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	orderID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		log.Printf("err handler %v", err)
-		http2.GetErrors(w, err)
-		return
+    	http.Error(w, "invalid order ID", http.StatusBadRequest)
+    	return
 	}
 
 	order, err := h.service.GetByID(r.Context(), userID, orderID)
